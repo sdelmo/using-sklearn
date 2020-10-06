@@ -1,0 +1,122 @@
+## import the bad boys
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import nltk
+%matplotlib inline
+
+## we import the yelp review data and check out the dataframe
+
+yelp=pd.read_csv('yelp.csv')
+yelp.head()
+
+yelp.info()
+yelp.describe()
+
+## we see that 75% of revies are 5 stars, 25% 3 stars, 50% 4 stars, so on
+## we create a new column for the dataframe containing the corresponding number of words in text column
+
+yelp['text length']=yelp['text'].apply(len)
+
+## EDA
+## we make a facetgrid  so we can compare amount of stars with text length histograms
+
+sns.set_style('whitegrid')
+badabing = sns.FacetGrid(data=yelp,col='stars')
+badabing.map(plt.hist,'text length')
+plt.tight_layout()
+
+## boxplot for text length for each star category
+
+sns.boxplot(x='stars',y='text length',data=yelp,palette='rainbow')
+
+## countplot of number of ocurrences for each star rating
+
+sns.countplot(data=yelp,x='stars')
+
+## we use groupby to get mean values of numerical columns
+
+stars=yelp.groupby(['stars']).mean()
+stars
+
+## we use corr method on the groupby dataframe so we can do a heatmap
+stars.corr()
+
+sns.heatmap(stars.corr(),annot=True,cmap='magma_r')
+
+## NLP classification -- we focus on using either 1 or 5 star reviews
+
+yelp_class=yelp[(yelp['stars']==1) | (yelp['stars']==5)]
+yelp_class.head()
+
+## we create two objects corresponding to features and labels
+
+X=yelp_class['text']
+y=yelp_class['stars']
+
+## import countvectorizer for our bag of words and create object, use fit transform
+
+from sklearn.feature_extraction.text import CountVectorizer
+cv = CountVectorizer()
+X=cv.fit_transform(X)
+
+## Train-Test Split
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=0.3,random_state=101)
+
+## Training the model: we create an instance of the estimator called nb
+
+from sklearn.naive_bayes import MultinomialNB
+nb = MultinomialNB()
+
+## we fit it
+
+nb.fit(X_train,y_train)
+
+## Predictions and error metrics
+
+yelp_predictions=nb.predict(X_test)
+from sklearn.metrics import classification_report, confusion_matrix
+
+print(confusion_matrix(y_test,yelp_predictions))
+print('\n')
+print(classification_report(y_test,yelp_predictions))
+
+## we include TF-IDF, which reflects importance of word to corpus, using a pipeline
+
+from sklearn.feature_extraction.text import  TfidfTransformer
+from sklearn.pipeline import Pipeline
+
+pipeline = Pipeline([
+    ('bow', CountVectorizer()),  # strings to token integer counts
+    ('tfidf', TfidfTransformer()),  # integer counts to weighted TF-IDF scores
+    ('classifier', MultinomialNB()),  # train on TF-IDF vectors w/ Naive Bayes classifier
+])
+
+## We need to train-test split again as we overwrote X when we vectorized
+
+X = yelp_class['text']
+y = yelp_class['stars']
+X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=0.3,random_state=101)
+
+## we fit our pipeline to the training data, passing in only text and labels
+
+pipeline.fit(X_train,y_train)
+
+## new predictions and eval
+
+pipred=pipeline.predict(X_test)
+
+print(confusion_matrix(y_test,pipred))
+print('\n')
+print(classification_report(y_test,pipred))
+
+## Using tf-idf actually gets us worse metrics so maybe not right approach <shrug>
+
+
+
+
+
