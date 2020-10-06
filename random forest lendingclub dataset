@@ -1,0 +1,103 @@
+## Import all libraries
+
+import pandas as pd
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+sns.set_style('whitegrid')
+
+## import data
+
+loans=pd.read_csv('loan_data.csv')
+loans.info()
+loans.describe()
+
+## EDA
+## we make histograms for FICO vs credit.policy outcome (remember 0 - no loan, 1 loan)
+
+Boi = sns.FacetGrid(loans, hue="credit.policy",height=9,aspect=3)
+Boi = Boi.map(sns.distplot, "fico",  hist=True, rug=True)
+Boi.add_legend()
+
+## do same thing comparing fico with not.fully.paid column
+
+Boi = sns.FacetGrid(loans, hue="not.fully.paid",height=9,aspect=3)
+Boi = Boi.map(sns.distplot, "fico",  hist=True, rug=True)
+Boi.add_legend()
+
+## we make a countplot to compare the no. loans by purpose, we set hue to not.fully.paid
+
+plt.figure(figsize=(16,8))
+sns.countplot(x='purpose',hue='not.fully.paid',data=loans,palette='Set1')
+
+## we see that the loans for debt consolidation are seldomly paid as well as credit card
+
+# we check for a trend between fico and interest rate (Remember ur credit score ??)
+
+sns.jointplot(x='fico',y='int.rate',data=loans)
+
+# we create a linear reg plot to see if these trends differ between not fully paid loans and credit policy
+
+plt.figure(figsize=(16,8))
+sns.lmplot(data=loans,x='fico',y='int.rate',hue='credit.policy',
+           col='not.fully.paid')
+
+## Prepping data for random forest classification model
+## we make sure to use dummy variables on our categorical features so sklearn can understand them
+
+cat_feats=['purpose']
+final_data=pd.get_dummies(loans,columns=cat_feats,drop_first=True)
+
+## Train test split
+
+from sklearn.model_selection import train_test_split
+X=final_data.drop('not.fully.paid',axis=1)
+y=final_data['not.fully.paid']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30)
+
+## We train a simple decision tree model to refer back to in terms of error metrics
+
+from sklearn.tree import DecisionTreeClassifier
+dtree=DecisionTreeClassifier()
+dtree.fit(X_train,y_train)
+
+## Predictions and error metrics
+
+prediccion=dtree.predict(X_test)
+from sklearn.metrics import classification_report, confusion_matrix
+
+print(classification_report(y_test,prediccion))
+print('\n')
+print(confusion_matrix(y_test,prediccion))
+
+## f1 score higher for predicting whether the person will default on the loan, not so high for predicting who really pays
+
+## we create instance of the random forest classifier class and fit it
+
+from sklearn.ensemble import RandomForestClassifier
+rfc = RandomForestClassifier(n_estimators=600)
+rfc.fit(X_train, y_train)
+
+rfc_pred = rfc.predict(X_test)
+print(classification_report(y_test,rfc_pred))
+print('\n')
+print(confusion_matrix(y_test,rfc_pred))
+
+## random forest performs much better, but we get many more false negatives
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
